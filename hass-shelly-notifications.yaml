@@ -1,0 +1,64 @@
+blueprint:
+  name: Detection of Shelly senors for overheating, overpowering and overvoltage
+  description: Monitors the Shelly sensors for overheating, overpowering and overvoltage as trigger for user defined actions
+  domain: automation
+  input:
+    which_states:
+      name: The states checked for the Shelly entities
+      description: The states above will trigger the action
+      selector:
+        select:
+          multiple: true
+          options:
+            - Overheating
+            - Overpowering
+            - Overvoltage
+    exclude:
+      name: Excluded Sensors
+      description: Shelly entities to exclude from detection. Only entities are supported, devices must be expanded!
+      default:
+        entity_id: []
+      selector:
+        target:
+          entity:
+          - device_class:
+            - humidity
+    user_conditions:
+      name: (Optional) Additional Condition(s)
+      description: In case of additional conditions must be met, they can be defined here
+      selector:
+        condition:
+    actions:
+      name: Actions
+      description: Notifications or similar to be run. {{sensors}} is replaced with
+        the names of sensors are above humidity threshold.
+      selector:
+        action: {}
+  source_url: https://github.com/FlySmack/hass-humidity-notification
+variables:
+  exclude: !input exclude
+  sensors: >
+    {% set result = namespace(sensors=[], friendly_names=[]) %}
+    {% set all_shelly_device_ids = integration_entities('shelly') |  map('device_id') | unique | list %}
+    {%- for shelly_device_id in all_shelly_device_ids %}
+        {% set shelly_entity_list =  device_entities(shelly_device_id) %}
+        {%- for shelly_entity in shelly_entity_list %}
+            {%- if is_state_attr(shelly_entity, 'device_class', 'problem') %}
+                {% set result.sensors = result.sensors + [shelly_entity] %}
+                {% set result.friendly_names = result.friendly_names + [state_attr(shelly_entity, 'friendly_name')] %}
+            {% endif %}
+        {%- endfor %}
+    {%- endfor %}
+
+trigger:
+  - platform: state
+    entity_id: sensors
+    to: 'on'
+condition:
+- and
+    - '{{ sensors != '''' }}'
+    - !input user_conditions
+action:
+- choose: []
+  default: !input actions
+mode: single
