@@ -5,23 +5,23 @@ blueprint:
   input:
     shelly_entities:
       name: The Shelly entity to check for problems
-      description: The Shelly problem entity will trigger the action
+      description: The Shelly problem entities will trigger the action
       selector:
         entity:
           multiple: true
           filter:
             integration: shelly
             device_class: problem
-    exclude:
-      name: Excluded Sensors
-      description: Shelly entities to exclude from detection. Only entities are supported, devices must be expanded!
-      default:
-        entity_id: []
-      selector:
-        target:
-          entity:
-          - device_class:
-            - problem
+#    exclude:
+#      name: Excluded Sensors
+#      description: Shelly entities to exclude from detection. Only entities are supported, devices must be expanded!
+#      default:
+#        entity_id: []
+#      selector:
+#        target:
+#          entity:
+#          - device_class:
+#            - problem
 #    user_conditions:
 #      name: (Optional) Additional Condition(s)
 #      description: In case of additional conditions must be met, they can be defined here
@@ -29,27 +29,35 @@ blueprint:
 #        condition:
     actions:
       name: Actions
-      description: Notifications or similar to be run. {{sensors}} is replaced with
-        the names of sensors having problems.
+      description: Notifications or similar to be run. {{sensors}} is replaced with the names of sensors having problems.
       selector:
         action: {}
-  source_url: https://github.com/FlySmack/hass-humidity-notification
+  source_url: https://github.com/FlySmack/hass-shelly-notification
 variables:
-  exclude: !input exclude
+#  exclude: !input exclude
+  shelly_entities: !input shelly_entities
   sensors: >
-    {% set result = namespace(sensors=[]) %}
-    {% set all_shelly_device_ids = integration_entities('shelly') |  map('device_id') | unique | list %}
-    {%- for shelly_device_id in all_shelly_device_ids %}
-        {% set shelly_entity_list =  device_entities(shelly_device_id) %}
-        {%- for shelly_entity in shelly_entity_list %}
-            {% if not shelly_entity in exclude.entity_id %}
-                {%- if is_state_attr(shelly_entity, 'device_class', 'problem') and is_state(shelly_entity, 'on') %}
-                    {% set result.sensors = result.sensors + [state_attr(shelly_entity, 'name')] %}
-                {%- endif %}
-            {%- endif %}
-        {%- endfor %}
-    {%- endfor %}
-    {{ result.sensors | join(', ') }}
+# Version using the users selected Shelly problem entities and without an exclude
+    {{  shelly_entities | select('is_state', 'on') | expand | map(attribute='name') | join(', ') }}
+# Version with opt-out with exclude list and no dedicated input list
+#    {{  integration_entities('shelly')
+#    | select('is_state', 'on')
+#    | select('is_state_attr', 'device_class', 'problem')
+#    | unique | expand | map(attribute='name') | join(', ') }}
+
+#    {% set result = namespace(sensors=[]) %}
+#    {% set all_shelly_device_ids = integration_entities('shelly') | map('device_id') | unique | list %}
+#    {%- for shelly_device_id in all_shelly_device_ids %}
+#      {% set shelly_entity_list =  device_entities(shelly_device_id) %}
+#        {%- for shelly_entity in shelly_entity_list %}
+#          {% if not shelly_entity in exclude.entity_id %}
+#            {%- if is_state_attr(shelly_entity, 'device_class', 'problem') and is_state(shelly_entity, 'on') %}
+#              {% set result.sensors = result.sensors + [state_attr(shelly_entity, 'name')] %}
+#            {%- endif %}
+#          {%- endif %}
+#        {%- endfor %}
+#    {%- endfor %}
+#    {{ result.sensors | join(', ') }}
 trigger:
   - platform: state
     entity_id: !input shelly_entities
