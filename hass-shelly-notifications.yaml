@@ -41,6 +41,7 @@ variables:
     {{  shelly_entities | select('is_state', 'on') | expand | map(attribute='name') | join(', ') }}
 # Version with opt-out with exclude list and no dedicated input list
 #    {{  integration_entities('shelly')
+#    | reject('in', exclude.entity_id)
 #    | select('is_state', 'on')
 #    | select('is_state_attr', 'device_class', 'problem')
 #    | unique | expand | map(attribute='name') | join(', ') }}
