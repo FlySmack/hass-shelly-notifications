@@ -2,6 +2,7 @@ blueprint:
   name: Detection of Shelly senors for overheating, overpowering and overvoltage
   description: Monitors the Shelly sensors for overheating, overpowering and overvoltage as trigger for user defined actions
   domain: automation
+  source_url: https://github.com/FlySmack/hass-shelly-notification
   input:
     shelly_helper_entity:
       name: The Shelly helper entity for problems
@@ -33,7 +34,6 @@ blueprint:
       description: Notifications or similar to be run. {{sensors}} is replaced with the names of sensors having problems.
       selector:
         action: {}
-  source_url: https://github.com/FlySmack/hass-shelly-notification
 variables:
   exclude: !input exclude
   sensors: >
