@@ -49,6 +49,7 @@ trigger:
 condition:
   - '{{ sensors != '''' }}'
 action:
-- choose: []
-  default: !input actions
+- choose:
+  - conditions: !input user_conditions
+    sequence: !input actions
 mode: single
