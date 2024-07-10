@@ -10,7 +10,11 @@ blueprint:
         entity:
     exclude:
       name: Excluded Sensors
-      description: Shelly entities to exclude from detection. Only entities are supported, devices must be expanded!
+      description: "Shelly entities to exclude from detection. Only entities are supported, devices must be expanded! Helper entity must be a template sensor offering a total of Shelly problem entities turned on. Use the following template:
+      {{  integration_entities('shelly')
+        | select('is_state', 'on')
+        | select('is_state_attr', 'device_class', 'problem')
+        | unique | expand | map(attribute='name') | list| count }}"
       default:
         entity_id: []
       selector:
@@ -21,9 +25,9 @@ blueprint:
     user_conditions:
       name: (Optional) Additional Condition(s)
       description: In case of additional conditions must be met, they can be defined here
-      default:
+      default: []
       selector:
-        condition:
+        condition: {}
     actions:
       name: Actions
       description: Notifications or similar to be run. {{sensors}} is replaced with the names of sensors having problems.
@@ -43,9 +47,7 @@ trigger:
     entity_id: !input shelly_helper_entity
     above: 0
 condition:
-- and
-    - '{{ sensors != '''' }}'
-    - !input user_conditions
+  - '{{ sensors != '''' }}'
 action:
 - choose: []
   default: !input actions
