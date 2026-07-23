@@ -37,11 +37,20 @@ blueprint:
 variables:
   exclude: !input exclude
   sensors: >
-    {{  integration_entities('shelly')
-    | reject('in', exclude.entity_id)
-    | select('is_state', 'on')
-    | select('is_state_attr', 'device_class', 'problem')
-    | unique | expand | map(attribute='name') | join(', ') }}
+    {% set result = namespace(sensors=[]) %}
+    {% set problem_entities = integration_entities('shelly')
+      | reject('in', exclude.entity_id)
+      | select('is_state', 'on')
+      | select('is_state_attr', 'device_class', 'problem')
+      | unique | expand %}
+      
+    {% for state in problem_entities %}
+      {% set area = area_name(state.entity_id) %}
+      {% set name = area ~ ' ' ~ state.name if area else state.name %}
+      {% set result.sensors = result.sensors + [name] %}
+    {% endfor %}
+    
+    {{ result.sensors | join(', ') }}
 trigger:
   - platform: numeric_state
     entity_id: !input shelly_helper_entity
