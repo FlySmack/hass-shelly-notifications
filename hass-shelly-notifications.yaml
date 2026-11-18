@@ -1,21 +1,25 @@
 blueprint:
   name: Detection of Shelly senors for overheating, overpowering and overvoltage
-  description: "v1.1.0 - Monitors the Shelly sensors for overheating, overpowering and overvoltage as trigger for user defined actions"
+  description: "v1.1.4 - Monitors the Shelly sensors for overheating, overpowering and overvoltage as trigger for user defined actions"
   domain: automation
   source_url: https://github.com/FlySmack/hass-shelly-notifications/blob/main/hass-shelly-notifications.yaml
   input:
     shelly_helper_entity:
-      name: The Shelly helper entity for problems
-      description: A helper entity counting for Shelly problem entities which are turned on
+      name: Shelly Problem Counter Entity
+      description: >-
+        A sensor entity that counts the number of Shelly problem entities currently turned on.
+        Must be a template sensor with state_class: total. Use the following template for the sensor value:
+
+        {{ integration_entities('shelly')
+           | select('is_state', 'on')
+           | select('is_state_attr', 'device_class', 'problem')
+           | unique | list | count }}
       selector:
         entity:
+          domain: sensor
     exclude:
       name: Excluded Sensors
-      description: "Shelly entities to exclude from detection. Only entities are supported, devices must be expanded! Helper entity must be a template sensor offering a total of Shelly problem entities turned on. Use the following template:
-      {{  integration_entities('shelly')
-        | select('is_state', 'on')
-        | select('is_state_attr', 'device_class', 'problem')
-        | unique | expand | map(attribute='name') | list| count }}"
+      description: "Shelly entities to exclude from detection. Entities, devices, areas, floors and labels are supported. Use 'Exceptions' (exclude.exclude) to re-include specific entities from an excluded group."
       default:
         entity_id: []
       selector:
@@ -36,10 +40,85 @@ blueprint:
         action: {}
 variables:
   exclude: !input exclude
+  excluded_ids: >
+    {% set _ei  = exclude.entity_id  if exclude.entity_id  is defined else [] %}
+    {% set _di  = exclude.device_id  if exclude.device_id  is defined else [] %}
+    {% set _ai  = exclude.area_id    if exclude.area_id    is defined else [] %}
+    {% set _fi  = exclude.floor_id   if exclude.floor_id   is defined else [] %}
+    {% set _li  = exclude.label_id   if exclude.label_id   is defined else [] %}
+    {% set excl_entities = [_ei] if _ei is string else _ei %}
+    {% set excl_devices  = [_di] if _di is string else _di %}
+    {% set excl_areas    = [_ai] if _ai is string else _ai %}
+    {% set excl_floors   = [_fi] if _fi is string else _fi %}
+    {% set excl_labels   = [_li] if _li is string else _li %}
+    {% set excl_sub      = exclude.exclude if exclude.exclude is defined else {} %}
+    {% set _nei = excl_sub.entity_id if excl_sub.entity_id is defined else [] %}
+    {% set _ndi = excl_sub.device_id if excl_sub.device_id is defined else [] %}
+    {% set _nai = excl_sub.area_id   if excl_sub.area_id   is defined else [] %}
+    {% set _nfi = excl_sub.floor_id  if excl_sub.floor_id  is defined else [] %}
+    {% set _nli = excl_sub.label_id  if excl_sub.label_id  is defined else [] %}
+    {% set not_entities  = [_nei] if _nei is string else _nei %}
+    {% set not_devices   = [_ndi] if _ndi is string else _ndi %}
+    {% set not_areas     = [_nai] if _nai is string else _nai %}
+    {% set not_floors    = [_nfi] if _nfi is string else _nfi %}
+    {% set not_labels    = [_nli] if _nli is string else _nli %}
+    {% set ns = namespace(ids=[], not_ids=[]) %}
+    {% for eid in excl_entities %}
+      {% set ns.ids = ns.ids + [eid] %}
+    {% endfor %}
+    {% for did in excl_devices %}
+      {% for eid in device_entities(did) %}
+        {% set ns.ids = ns.ids + [eid] %}
+      {% endfor %}
+    {% endfor %}
+    {% for aid in excl_areas %}
+      {% for eid in area_entities(aid) %}
+        {% set ns.ids = ns.ids + [eid] %}
+      {% endfor %}
+    {% endfor %}
+    {% for fid in excl_floors %}
+      {% for aid in floor_areas(fid) %}
+        {% for eid in area_entities(aid) %}
+          {% set ns.ids = ns.ids + [eid] %}
+        {% endfor %}
+      {% endfor %}
+    {% endfor %}
+    {% for lid in excl_labels %}
+      {% for eid in label_entities(lid) %}
+        {% set ns.ids = ns.ids + [eid] %}
+      {% endfor %}
+    {% endfor %}
+    {% for eid in not_entities %}
+      {% set ns.not_ids = ns.not_ids + [eid] %}
+    {% endfor %}
+    {% for did in not_devices %}
+      {% for eid in device_entities(did) %}
+        {% set ns.not_ids = ns.not_ids + [eid] %}
+      {% endfor %}
+    {% endfor %}
+    {% for aid in not_areas %}
+      {% for eid in area_entities(aid) %}
+        {% set ns.not_ids = ns.not_ids + [eid] %}
+      {% endfor %}
+    {% endfor %}
+    {% for fid in not_floors %}
+      {% for aid in floor_areas(fid) %}
+        {% for eid in area_entities(aid) %}
+          {% set ns.not_ids = ns.not_ids + [eid] %}
+        {% endfor %}
+      {% endfor %}
+    {% endfor %}
+    {% for lid in not_labels %}
+      {% for eid in label_entities(lid) %}
+        {% set ns.not_ids = ns.not_ids + [eid] %}
+      {% endfor %}
+    {% endfor %}
+    {{ ns.ids | unique | reject('in', ns.not_ids) | list | to_json }}
   sensors: >
+    {% set excl = excluded_ids | trim | from_json %}
     {% set result = namespace(sensors=[]) %}
     {% set problem_entities = integration_entities('shelly')
-      | reject('in', exclude.entity_id)
+      | reject('in', excl)
       | select('is_state', 'on')
       | select('is_state_attr', 'device_class', 'problem')
       | unique | expand %}
