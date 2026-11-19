@@ -1,6 +1,6 @@
 blueprint:
   name: Detection of Shelly senors for overheating, overpowering and overvoltage
-  description: "v1.1.4 - Monitors the Shelly sensors for overheating, overpowering and overvoltage as trigger for user defined actions"
+  description: "v1.1.5 - Monitors the Shelly sensors for overheating, overpowering and overvoltage as trigger for user defined actions"
   domain: automation
   source_url: https://github.com/FlySmack/hass-shelly-notifications/blob/main/hass-shelly-notifications.yaml
   input:
@@ -126,7 +126,7 @@ variables:
     {% for state in problem_entities %}
       {% set area = area_name(state.entity_id) or area_name(device_id(state.entity_id)) %}
       {% set dev = device_name(state.entity_id) %}
-      {% set ent = entity_name(state.entity_id) %}
+      {% set ent = entity_name(state.entity_id) or dev %}
       {% set label = (dev ~ ' ' ~ ent) if (dev and ent and dev not in ent) else (ent or dev or state.name) %}
       {% set name = (area ~ ' - ' ~ label) if area else label %}
       {% set result.sensors = result.sensors + [name] %}
